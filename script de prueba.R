@@ -49,7 +49,7 @@ df_sin_duplicados <- datos_a_limpiar %>%
   distinct(id_vivienda, id_persona, .keep_all = TRUE)
 #con distinct seleccionamos todos los id_vivienda e id_persona que no se repiten. Y .keep asegura que persistan los demás ids
 
-# boxplot para ver sesgo --------------------------------------------------
+# boxplot para ver sesgo--------------------------------------------------
 library(ggplot2)
 ggplot(data = df_sin_duplicados, aes(x= sexo, y=y1, fill = sexo)) +
   geom_boxplot(alpha=0.7)+
