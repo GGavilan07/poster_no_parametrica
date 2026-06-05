@@ -2,6 +2,7 @@ library(tidyverse) #necesario para trabajar con los datos
 library(haven) #librería que permite leer datos provinientes de STATA  (.dta)
 library(Hmisc) #librería que permite calcular estadísticos con ponderaciones
 library(survey) #librería que permite trabajar con los diseños de las encuestas
+library(nortest)
 options(scipen = 999) #opción que muestra la extensión de los decimales
 file.choose() #escogemos el archivo para saber la ruta
 df <- read_dta("C:\\Users\\gabo\\Documents\\poster_no_parametrica\\casen_2024.dta") #leemos la base de datos
@@ -39,7 +40,7 @@ mediana_ponderada
 
 datos_a_limpiar <- datos %>% select(region, sexo, y1, expr, varunit, varstrat, id_vivienda, id_persona)
 conteo_na <- datos_a_limpiar %>% summarise(across(everything(), ~sum(is.na(.)))) #revisamos columna por columna todas las observaciones, buscando sumar todos los NA.
-conteo_na #0 Na
+conteo_na #0 NA
 # Buscamos duplicados usando los ids únicas de la CASEN
 duplicados_reales <- datos_a_limpiar %>%
   group_by(id_vivienda, id_persona) %>% #Agrupamos por id único de vivivienda y persona
@@ -94,8 +95,46 @@ diseno_casen <- svydesign(
   nest = TRUE
 )
 
-# 4. Calcular la mediana poblacional exacta por sexo
+# Calculando la mediana poblacional ponderada con expr por sexo
 medianas_sexo <- datos_limpios %>% group_by(sexo) %>% 
   summarise(wtd.quantile(y1, w=expr, probs = 0.50))
 medianas_sexo
+
+# Planteamiento de Hipotésis y su test respectivo -------------------------
+#Probamos normalidad mediante el test de lilliefors, tanto para hombres, mujeres y ambos.
+#H_0: La remuneración de la ocupación principal de los hombres sigue una distribución normal con media mu y varianza sigma^2.
+#H_1: La remuneración de la ocupación principal de los hombres NO sigue una distribución normal con media mu y varianza sigma^2.
+#Con un nivel de signifancia alpha = 0.05:
+datos_h <- datos_limpios %>% filter(sexo == "Hombre")
+lillie.test(datos_h$y1)
+#Rechazamos H_0, p_valor < alpha. Por lo tanto
+#Con un nivel de significancia alpha = 0.05, rechazamos H_0. Es decir: La remuneración de la ocupación principal de los hombres NO sigue una distribución normal con media mu y varianza sigma^2
+
+#H_0: La remuneración de la ocupación principal de las mujeres sigue una distribución normal con media mu y varianza sigma^2.
+#H_1: La remuneración de la ocupación principal de las mujeres NO sigue una distribución normal con media mu y varianza sigma^2.
+#Con un nivel de significancia alpha = 0.05:
+datos_m <- datos_limpios %>% filter(sexo == "Mujer")
+lillie.test(datos_m$y1)
+#Rechazamos H_0, p_valor < alpha. Por lo tanto:
+#Con un nivel de significancia alpha = 0.05, rechazamos H_0. Es decir: La remuneración de la ocupación principal de las mujeres NO sigue una distribución normal con media mu y varianza sigma^2.
+
+#H_0:La remuneración de la ocupación principal de las personas de la región del Maule sigue una distribución normal con media mu y varianza sigma^2.
+#H_1:La remuneración de la ocupación principal de las personas de la región del Maule NO sigue una distribución normal con media mu y varianza sigma^2.
+#Con un nivel de significancia alpha = 0.05:
+lillie.test(datos_limpios$y1)
+#Rechazamos H_0, p_valor < alpha. Por lo tanto:
+#Con un nivel de significancia alpha = 0.05, rechazamos H_0. Es decir: La remuneración de la ocupación principal de las personas de la región del Maule NO sigue una distribución normal con media mu y varianza sigma^2.
+#Test
+diseno_casen <- svydesign(
+  ids = ~varunit, #Conglomerados de varianza
+  strata = ~varstrat, #Estratos de varianza
+  weights = ~expr, #Factor de expansión regional
+  data = datos_limpios,
+  nest = TRUE
+)
+#H_0: Las distribuciones de los ingresos de la ocupación principal de hombres y mujeres en la región del Maule son idénticas.
+#H_1: Las distribuciones de los ingresos de la ocupación principal de hombre y mujeres en la region del Maule difieren significativamente entre hombres y mujeres.
+#Con un nivel de significancia alpha=0.05:
 svyranktest(y1~sexo, diseno_casen, test = "wilcoxon")
+#Rechazamos H_0, p-valor < alpha. Por lo tanto:
+#Con un nivel de significancia alpha=0.05, rechazamos H_0. Es decir: Las distribuciones de los ingresos de la ocupación principal de hombre y mujeres en la region del Maule difieren significativamente entre hombres y mujeres.
