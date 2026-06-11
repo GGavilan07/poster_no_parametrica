@@ -2,9 +2,9 @@ library(tidyverse) #necesario para trabajar con los datos
 library(haven) #librería que permite leer datos provinientes de STATA  (.dta)
 library(Hmisc) #librería que permite calcular estadísticos con ponderaciones
 library(survey) #librería que permite trabajar con los diseños de las encuestas
-library(nortest)
+library(nortest) #librería que contiene test estadísticos.
 options(scipen = 999) #opción que muestra la extensión de los decimales
-file.choose() #escogemos el archivo para saber la ruta
+file.choose() #escogemos el archivo para conocer su ruta
 df <- read_dta("C:\\Users\\gabo\\Documents\\poster_no_parametrica\\casen_2024.dta") #leemos la base de datos
 datos <- df %>% #tomamos la base original
   filter(region == 7, y1 > 0) %>% #filtramos por la región del maule e y1 > 0
@@ -38,14 +38,15 @@ mediana_ponderada
 
 # limpieza de los datos ---------------------------------------------------
 
-datos_a_limpiar <- datos %>% select(region, sexo, y1, expr, varunit, varstrat, id_vivienda, id_persona)
+datos_a_limpiar <- datos %>% select(region, sexo, y1, expr, varunit, varstrat, id_vivienda, id_persona, folio)
 conteo_na <- datos_a_limpiar %>% summarise(across(everything(), ~sum(is.na(.)))) #revisamos columna por columna todas las observaciones, buscando sumar todos los NA.
 conteo_na #0 NA
 # Buscamos duplicados usando los ids únicas de la CASEN
 duplicados_reales <- datos_a_limpiar %>%
-  group_by(id_vivienda, id_persona) %>% #Agrupamos por id único de vivivienda y persona
+  group_by(id_vivienda, folio, id_persona) %>% #Agrupamos por id único de vivivienda y persona
   filter(n() > 1) #Filtramos por cada id_vivienda e id_persona que esté presente más de una vez
-  sum(duplicated(duplicados_reales[c("id_persona", "id_vivienda")])) #sumamos cada id_persona e id_vivienda que esté repetido
+  sum(duplicated(duplicados_reales[c("id_persona", "id_vivienda")])) #sumamos cada id_persona, id_vivienda y folio que esté repetido
+  #0 columnas duplicads
 df_sin_duplicados <- datos_a_limpiar %>% 
   distinct(id_vivienda, id_persona, .keep_all = TRUE)
 #con distinct seleccionamos todos los id_vivienda e id_persona que no se repiten. Y .keep asegura que persistan los demás ids
